@@ -26,8 +26,16 @@ def save_tasks(tasks):
 app = Flask(__name__)
 app.secret_key = os.getenv("FLASK_SECRET_KEY")
 
-cred = credentials.Certificate(os.getenv("FIREBASE_KEY_PATH"))
+import base64
+
+# Decode base64 env var
+firebase_key_b64 = os.getenv("FIREBASE_KEY_BASE64")
+firebase_key_json = base64.b64decode(firebase_key_b64).decode("utf-8")
+firebase_key_dict = json.loads(firebase_key_json)
+
+cred = credentials.Certificate(firebase_key_dict)
 firebase_admin.initialize_app(cred)
+
 
 def verify_firebase_token(id_token):
     try:
