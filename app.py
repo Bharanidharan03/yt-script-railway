@@ -36,6 +36,7 @@ firebase_key_dict = json.loads(firebase_key_json)
 cred = credentials.Certificate(firebase_key_dict)
 firebase_admin.initialize_app(cred)
 
+
 def verify_firebase_token(id_token):
     try:
         return auth.verify_id_token(id_token)
@@ -191,27 +192,16 @@ def creator_page():
 @login_required
 def freelancer_page():
     user_email = session.get("user_email")
-    tasks = load_tasks()
+    notification = freelancer_notifications.get(user_email)
 
-    requestable_posts = [
-        task for task in tasks
-        if task.get("posted_by") != user_email and task.get("freelancer_email") is None
-    ]
-    my_requests = [
-        task for task in tasks
-        if task.get("freelancer_email") == user_email and task.get("status") in ["pending", "accepted"]
-    ]
-    rejected_requests = [
-        task for task in tasks
-        if task.get("freelancer_email") == user_email and task.get("status") == "rejected"
-    ]
+    with open("data/tasks.json", "r") as f:
+        all_posts = json.load(f)
 
     return render_template(
         "freelancer.html",
+        posts=all_posts,
         user_email=user_email,
-        requestable_posts=requestable_posts,
-        my_requests=my_requests,
-        rejected_requests=rejected_requests
+        notification=notification
     )
 
 @app.route('/respond', methods=['POST'])
@@ -226,7 +216,7 @@ def respond():
     if 0 <= post_id < len(tasks):
         task = tasks[post_id]
 
-        if task.get("status") == "accepted":
+        if task.get("status") in ["accepted"]:
             flash("\u274c This task has already been accepted by another freelancer.")
         elif task.get("freelancer_email") == freelancer_email:
             flash("\u26a0\ufe0f You’ve already requested this task.")
@@ -241,34 +231,19 @@ def respond():
 
     return redirect(url_for('freelancer_page'))
 
-@app.route('/delete_rejected_request', methods=['POST'])
-@login_required
-def delete_rejected_request():
-    task_title = request.form.get("title")
-    user_email = session.get("user_email")
-
-    tasks = load_tasks()
-    for task in tasks:
-        if task.get("need") == task_title and task.get("freelancer_email") == user_email and task.get("status") == "rejected":
-            task["freelancer_email"] = None
-            task["freelancer_message"] = None
-            task["status"] = "open"
-            break
-
-    save_tasks(tasks)
-    return redirect(url_for("freelancer_page"))
-
 @app.route('/creator-requests', methods=['GET', 'POST'])
 @login_required
 def creator_requests():
     creator_email = session.get('user_email')
-    tasks = load_tasks()
+
+    with open('data/tasks.json', 'r') as f:
+        all_tasks = json.load(f)
 
     if request.method == 'POST':
         post_id = int(request.form.get('post_id'))
         action = request.form.get('action')
 
-        creator_tasks = [task for task in tasks if task.get("posted_by") == creator_email and task.get("status") == "pending"]
+        creator_tasks = [task for task in all_tasks if task.get("posted_by") == creator_email and task.get("status") == "pending"]
 
         if 0 <= post_id < len(creator_tasks):
             selected_task = creator_tasks[post_id]
@@ -276,14 +251,14 @@ def creator_requests():
             selected_freelancer_email = selected_task["freelancer_email"]
 
             if action == "accept":
-                for task in tasks:
+                for task in all_tasks:
                     if task.get("posted_by") == creator_email and task.get("need") == need:
                         if task.get("freelancer_email") == selected_freelancer_email:
                             task["status"] = "accepted"
                         else:
                             task["status"] = "rejected"
             elif action == "reject":
-                for task in tasks:
+                for task in all_tasks:
                     if (
                         task.get("posted_by") == creator_email and
                         task.get("freelancer_email") == selected_freelancer_email and
@@ -291,11 +266,13 @@ def creator_requests():
                     ):
                         task["status"] = "rejected"
 
-        save_tasks(tasks)
+        with open('data/tasks.json', 'w') as f:
+            json.dump(all_tasks, f, indent=2)
+
         return redirect(url_for('creator_requests'))
 
     creator_posts = [
-        task for task in tasks
+        task for task in all_tasks
         if task.get("posted_by") == creator_email and task.get("status") == "pending" and task.get("freelancer_email")
     ]
 

@@ -15,16 +15,9 @@
 
     h1 {
       text-align: center;
-      margin-bottom: 30px;
+      margin-bottom: 40px;
       font-size: 32px;
       color: #2d2d2d;
-    }
-
-    h2 {
-      font-size: 24px;
-      color: #444;
-      margin-top: 60px;
-      text-align: center;
     }
 
     .task-container {
@@ -121,20 +114,11 @@
       font-size: 14px;
       cursor: pointer;
       transition: all 0.2s ease;
-      margin-top: 8px;
     }
 
     button:hover {
       transform: scale(1.05);
       background: linear-gradient(to right, #16a34a, #15803d);
-    }
-
-    .delete-button {
-      background: linear-gradient(to right, #ef4444, #b91c1c);
-    }
-
-    .delete-button:hover {
-      background: linear-gradient(to right, #dc2626, #991b1b);
     }
 
     @keyframes gradientMove {
@@ -152,70 +136,40 @@
   </style>
 </head>
 <body>
-  <h1>📌 Freelancer Dashboard</h1>
+  <h1>📌 Available Tasks</h1>
 
-  <!-- Section: Available to Request -->
-  <h2>Available Tasks</h2>
   <div class="task-container">
-    {% for post in available_tasks %}
+    {% for post in posts %}
       <div class="task-box">
         <h3>{{ post.need }}</h3>
         <p><strong>💰 Budget:</strong> ₹{{ post.budget }}</p>
-        <p><strong>⏳ Duration:</strong> {{ post.duration or 'Not specified' }}</p>
+        <p><strong>⏳ Duration:</strong>
+          {% if post.duration %}
+            {{ post.duration }} day{{ 's' if post.duration != '1' else '' }}
+          {% else %}
+            Not specified
+          {% endif %}
+        </p>
 
-        {% if post.email == user_email %}
-          <p class="status status-other">🧑‍💼 You posted this task.</p>
-        {% else %}
+        {% if post.freelancer_email == user_email %}
+          <p class="status {% if post.status == 'accepted' %}status-accepted{% elif post.status == 'rejected' %}status-rejected{% elif post.status == 'pending' %}status-pending{% else %}status-other{% endif %}">
+            🔔 Request Status: <strong>{{ post.status }}</strong>
+          </p>
+          <p><strong>💬 Your message:</strong><br> {{ post.freelancer_message }}</p>
+
+        {% elif not post.freelancer_email %}
           <form class="request-form" method="POST" action="/respond">
             <textarea name="message" placeholder="Write your request message..." required></textarea>
-            <input type="hidden" name="post_id" value="{{ post.id }}">
+            <input type="hidden" name="post_id" value="{{ loop.index0 }}">
             <button type="submit">🚀 Send Request</button>
           </form>
+        {% else %}
+          <p class="status status-other">⚠️ This task is already requested by another freelancer.</p>
         {% endif %}
       </div>
-    {% endfor %}
+    {% endfor %}    
   </div>
-
-  <!-- Section: My Requests -->
-  <h2>My Requests</h2>
-  <div class="task-container">
-    {% for post in my_requests %}
-      <div class="task-box">
-        <h3>{{ post.need }}</h3>
-        <p><strong>💰 Budget:</strong> ₹{{ post.budget }}</p>
-        <p><strong>⏳ Duration:</strong> {{ post.duration or 'Not specified' }}</p>
-        <p class="status 
-          {% if post.status == 'accepted' %}status-accepted
-          {% elif post.status == 'rejected' %}status-rejected
-          {% elif post.status == 'pending' %}status-pending
-          {% else %}status-other{% endif %}">
-          🔔 Request Status: <strong>{{ post.status }}</strong>
-        </p>
-        <p><strong>💬 Your message:</strong><br> {{ post.freelancer_message }}</p>
-      </div>
-    {% endfor %}
-  </div>
-
-  <!-- Section: Rejected -->
-  <h2>Rejected Requests</h2>
-  <div class="task-container">
-    {% for post in rejected_requests %}
-      <div class="task-box">
-        <h3>{{ post.need }}</h3>
-        <p><strong>💰 Budget:</strong> ₹{{ post.budget }}</p>
-        <p><strong>⏳ Duration:</strong> {{ post.duration or 'Not specified' }}</p>
-        <p class="status status-rejected">❌ Request Status: <strong>{{ post.status }}</strong></p>
-        <p><strong>💬 Your message:</strong><br> {{ post.freelancer_message }}</p>
-        <form method="POST" action="/delete_request">
-          <input type="hidden" name="post_id" value="{{ post.id }}">
-          <button type="submit" class="delete-button">🗑️ Delete Request</button>
-        </form>
-      </div>
-    {% endfor %}
-  </div>
-
-  <!-- Back Button -->
-  <div style="text-align: center; margin-top: 40px;">
+    <div style="text-align: center; margin-top: 40px;">
     <a href="/hub">
       <button style="
         background: linear-gradient(to right, #3b82f6, #2563eb);
@@ -231,5 +185,6 @@
       </button>
     </a>
   </div>
+
 </body>
 </html>
